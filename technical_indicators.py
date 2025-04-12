@@ -100,8 +100,11 @@ def get_technical_signals(df_with_indicators):
     signals = {}
     
     try:
-        # Get the latest data point
-        latest = df_with_indicators.iloc[-1]
+        # Get the latest data point and convert to proper format to avoid comparison issues
+        latest_row = df_with_indicators.iloc[-1]
+        # Convert to dictionary to avoid Series truth value ambiguity
+        latest = {col: float(val) if pd.notna(val) and isinstance(val, (int, float, np.number)) else val 
+                 for col, val in latest_row.items()}
         
         # Check if RSI is available (not NaN)
         if 'RSI' in latest and pd.notna(latest['RSI']):
@@ -325,10 +328,13 @@ def plot_indicators(df_with_indicators, ticker_symbol):
                 axes[0].plot(df_with_indicators.index, df_with_indicators['RSI'], color='purple')
                 axes[0].axhline(y=70, color='red', linestyle='--', alpha=0.5)
                 axes[0].axhline(y=30, color='green', linestyle='--', alpha=0.5)
+                # Use numpy arrays for comparison to avoid Series truth value ambiguity
+                oversold = df_with_indicators['RSI'].ge(70).to_numpy()
+                overbought = df_with_indicators['RSI'].le(30).to_numpy()
                 axes[0].fill_between(df_with_indicators.index, df_with_indicators['RSI'], 70, 
-                                    where=(df_with_indicators['RSI'] >= 70), color='red', alpha=0.3)
+                                    where=oversold, color='red', alpha=0.3)
                 axes[0].fill_between(df_with_indicators.index, df_with_indicators['RSI'], 30, 
-                                    where=(df_with_indicators['RSI'] <= 30), color='green', alpha=0.3)
+                                    where=overbought, color='green', alpha=0.3)
                 axes[0].set_title('RSI (Relative Strength Index)')
                 axes[0].set_ylabel('RSI')
                 axes[0].set_ylim(0, 100)
@@ -357,10 +363,13 @@ def plot_indicators(df_with_indicators, ticker_symbol):
                 axes[2].plot(df_with_indicators.index, df_with_indicators['Stoch_d'], label='%D', color='red')
                 axes[2].axhline(y=80, color='red', linestyle='--', alpha=0.5)
                 axes[2].axhline(y=20, color='green', linestyle='--', alpha=0.5)
+                # Use numpy arrays for comparison to avoid Series truth value ambiguity
+                stoch_overbought = df_with_indicators['Stoch_k'].ge(80).to_numpy()
+                stoch_oversold = df_with_indicators['Stoch_k'].le(20).to_numpy()
                 axes[2].fill_between(df_with_indicators.index, df_with_indicators['Stoch_k'], 80, 
-                                    where=(df_with_indicators['Stoch_k'] >= 80), color='red', alpha=0.3)
+                                    where=stoch_overbought, color='red', alpha=0.3)
                 axes[2].fill_between(df_with_indicators.index, df_with_indicators['Stoch_k'], 20, 
-                                    where=(df_with_indicators['Stoch_k'] <= 20), color='green', alpha=0.3)
+                                    where=stoch_oversold, color='green', alpha=0.3)
                 axes[2].set_title('Stochastic Oscillator')
                 axes[2].set_ylabel('Stochastic')
                 axes[2].set_ylim(0, 100)
