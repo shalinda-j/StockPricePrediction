@@ -72,12 +72,59 @@ def predict_prices(model, X_test, y_test, df, scaler, model_type, prediction_day
     last_idx = df.index[-1]
     future_dates = [last_idx + timedelta(days=i+1) for i in range(prediction_days)]
     
-    # Create time indices for future predictions
-    last_time_idx = X_test.iloc[-1]['Time_Index'] if len(X_test) > 0 else df.shape[0] - 1
-    future_indices = np.array([last_time_idx + i + 1 for i in range(prediction_days)]).reshape(-1, 1)
+    # Create future predictions
+    if model_type == "Linear Regression":
+        # For Linear Regression, we can simply use time indices
+        last_time_idx = X_test.iloc[-1]['Time_Index'] if len(X_test) > 0 else df.shape[0] - 1
+        future_indices = np.array([last_time_idx + i + 1 for i in range(prediction_days)]).reshape(-1, 1)
+        future_pred_scaled = model.predict(future_indices)
+        
+    else:  # Random Forest
+        # For Random Forest, we need to create a proper feature set with lag values
+        # Get the column names from X_test to ensure we use the same features
+        feature_columns = X_test.columns.tolist()
+        
+        # Create a DataFrame to store future predictions
+        future_X = pd.DataFrame(columns=feature_columns)
+        
+        # Extract the last window_size values from the original data for initial lags
+        window_size = len(feature_columns) - 1  # Subtract 1 for Time_Index
+        
+        # Get the last set of scaled values
+        last_values = X_test.iloc[-1].copy()
+        
+        # Make predictions day by day
+        for i in range(prediction_days):
+            # Update the time index for the new day
+            current_time_idx = last_time_idx + i + 1
+            current_row = last_values.copy()
+            current_row['Time_Index'] = current_time_idx
+            
+            # Make prediction for the current day
+            current_pred = model.predict(current_row.values.reshape(1, -1))[0]
+            
+            # Add the row to future_X
+            future_X.loc[i] = current_row
+            
+            # Update lag values for the next prediction
+            # Shift all lag values (assuming column names like 'Lag_1', 'Lag_2'...)
+            for j in range(1, window_size):
+                lag_col = f'Lag_{j}'
+                next_lag_col = f'Lag_{j+1}'
+                if next_lag_col in current_row:
+                    current_row[lag_col] = current_row[next_lag_col]
+            
+            # Set the newest lag value to the prediction we just made
+            if 'Lag_1' in current_row:
+                current_row['Lag_1'] = current_pred
+            
+            # Update last_values for the next iteration
+            last_values = current_row
+        
+        # Make predictions for all future days
+        future_pred_scaled = model.predict(future_X)
     
-    # Make predictions for future dates
-    future_pred_scaled = model.predict(future_indices)
+    # Reshape and inverse transform to get actual price values
     future_pred_reshaped = future_pred_scaled.reshape(-1, 1)
     future_predictions = scaler.inverse_transform(future_pred_reshaped).flatten()
     
