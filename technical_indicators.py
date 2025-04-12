@@ -22,22 +22,28 @@ def add_technical_indicators(df):
     
     # Add indicators using the 'ta' library
     try:
+        # Ensure we have 1D arrays by using .values.flatten() if needed
+        close_values = df['Close'].values.flatten() if hasattr(df['Close'], 'values') and df['Close'].values.ndim > 1 else df['Close']
+        high_values = df['High'].values.flatten() if hasattr(df['High'], 'values') and df['High'].values.ndim > 1 else df['High']
+        low_values = df['Low'].values.flatten() if hasattr(df['Low'], 'values') and df['Low'].values.ndim > 1 else df['Low']
+        volume_values = df['Volume'].values.flatten() if hasattr(df['Volume'], 'values') and df['Volume'].values.ndim > 1 else df['Volume']
+        
         # Moving averages
-        df_with_indicators['SMA_20'] = ta.trend.sma_indicator(df['Close'], window=20)
-        df_with_indicators['SMA_50'] = ta.trend.sma_indicator(df['Close'], window=50)
-        df_with_indicators['EMA_20'] = ta.trend.ema_indicator(df['Close'], window=20)
+        df_with_indicators['SMA_20'] = ta.trend.sma_indicator(close_values, window=20)
+        df_with_indicators['SMA_50'] = ta.trend.sma_indicator(close_values, window=50)
+        df_with_indicators['EMA_20'] = ta.trend.ema_indicator(close_values, window=20)
         
         # RSI (Relative Strength Index)
-        df_with_indicators['RSI'] = ta.momentum.rsi(df['Close'], window=14)
+        df_with_indicators['RSI'] = ta.momentum.rsi(close_values, window=14)
         
         # MACD (Moving Average Convergence Divergence)
-        macd = ta.trend.MACD(df['Close'])
+        macd = ta.trend.MACD(close_values)
         df_with_indicators['MACD'] = macd.macd()
         df_with_indicators['MACD_Signal'] = macd.macd_signal()
         df_with_indicators['MACD_Hist'] = macd.macd_diff()
         
         # Bollinger Bands
-        bollinger = ta.volatility.BollingerBands(df['Close'])
+        bollinger = ta.volatility.BollingerBands(close_values)
         df_with_indicators['BB_High'] = bollinger.bollinger_hband()
         df_with_indicators['BB_Low'] = bollinger.bollinger_lband()
         df_with_indicators['BB_Middle'] = bollinger.bollinger_mavg()
@@ -45,13 +51,13 @@ def add_technical_indicators(df):
         
         # ATR (Average True Range) - volatility indicator
         df_with_indicators['ATR'] = ta.volatility.average_true_range(
-            df['High'], df['Low'], df['Close'])
+            high_values, low_values, close_values)
         
         # OBV (On-Balance Volume)
-        df_with_indicators['OBV'] = ta.volume.on_balance_volume(df['Close'], df['Volume'])
+        df_with_indicators['OBV'] = ta.volume.on_balance_volume(close_values, volume_values)
         
         # Stochastic Oscillator
-        stoch = ta.momentum.StochasticOscillator(df['High'], df['Low'], df['Close'])
+        stoch = ta.momentum.StochasticOscillator(high_values, low_values, close_values)
         df_with_indicators['Stoch_k'] = stoch.stoch()
         df_with_indicators['Stoch_d'] = stoch.stoch_signal()
         
