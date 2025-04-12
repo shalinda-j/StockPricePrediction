@@ -90,6 +90,9 @@ def predict_prices(model, X_test, y_test, df, scaler, model_type, prediction_day
         # Extract the last window_size values from the original data for initial lags
         window_size = len(feature_columns) - 1  # Subtract 1 for Time_Index
         
+        # Get the last time index from X_test
+        last_time_idx = X_test.iloc[-1]['Time_Index'] if len(X_test) > 0 else df.shape[0] - 1
+        
         # Get the last set of scaled values
         last_values = X_test.iloc[-1].copy()
         

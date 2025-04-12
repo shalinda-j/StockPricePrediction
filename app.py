@@ -20,10 +20,12 @@ st.set_page_config(
 )
 
 # Application title and description
-st.title("📈 Stock Price Prediction App")
+st.title("📈 Stock & Sri Lankan Market Prediction App")
 st.markdown("""
-This application uses machine learning models to predict stock and cryptocurrency prices.
+This application uses machine learning models to predict international stocks, Sri Lankan stocks, and cryptocurrency prices.
 Choose a stock/crypto, date range, and model to see predictions!
+
+**Sri Lankan Stock Market Support**: You can analyze stocks listed on the Colombo Stock Exchange (CSE) by entering symbols like COMB.N0000, JKH.N0000, etc.
 """)
 
 # Sidebar for user inputs
@@ -34,7 +36,26 @@ data_type = st.sidebar.radio("Choose Data Type:", ("Stock", "Cryptocurrency"))
 
 # Input for ticker symbol
 if data_type == "Stock":
-    ticker_symbol = st.sidebar.text_input("Enter Stock Symbol (e.g., AAPL, MSFT, GOOG):", "AAPL")
+    # Provide examples of both international and Sri Lankan stocks
+    ticker_symbol = st.sidebar.text_input(
+        "Enter Stock Symbol:",
+        "AAPL",
+        help="For international stocks: AAPL, MSFT, GOOG\nFor Sri Lankan stocks: COMB.N0000, JKH.N0000, LOLC.N0000, CCS.N0000"
+    )
+    
+    # Show additional information about Sri Lankan stocks
+    if '.N' in ticker_symbol or '.X' in ticker_symbol:
+        st.sidebar.info("""
+        **Sri Lankan Stock Selected**
+        
+        Common Sri Lankan Stock Symbols:
+        - COMB.N0000 (Commercial Bank)
+        - JKH.N0000 (John Keells Holdings)
+        - LOLC.N0000 (LOLC Holdings)
+        - CCS.N0000 (CIC Holdings)
+        - DIST.N0000 (Distilleries Company)
+        - TJL.N0000 (Teejay Lanka)
+        """)
 else:
     ticker_symbol = st.sidebar.text_input("Enter Crypto Symbol (e.g., BTC-USD, ETH-USD):", "BTC-USD")
 
