@@ -22,11 +22,27 @@ def add_technical_indicators(df):
     
     # Add indicators using the 'ta' library
     try:
-        # Ensure we have 1D arrays by using .values.flatten() if needed
-        close_values = df['Close'].values.flatten() if hasattr(df['Close'], 'values') and df['Close'].values.ndim > 1 else df['Close']
-        high_values = df['High'].values.flatten() if hasattr(df['High'], 'values') and df['High'].values.ndim > 1 else df['High']
-        low_values = df['Low'].values.flatten() if hasattr(df['Low'], 'values') and df['Low'].values.ndim > 1 else df['Low']
-        volume_values = df['Volume'].values.flatten() if hasattr(df['Volume'], 'values') and df['Volume'].values.ndim > 1 else df['Volume']
+        # Ensure we have pandas Series (not numpy arrays) for all inputs
+        # The ta library needs pandas Series with the rolling method
+        if not isinstance(df['Close'], pd.Series):
+            close_values = pd.Series(df['Close'].values.flatten() if hasattr(df['Close'], 'values') and df['Close'].values.ndim > 1 else df['Close'])
+        else:
+            close_values = df['Close']
+            
+        if not isinstance(df['High'], pd.Series):
+            high_values = pd.Series(df['High'].values.flatten() if hasattr(df['High'], 'values') and df['High'].values.ndim > 1 else df['High'])
+        else:
+            high_values = df['High']
+            
+        if not isinstance(df['Low'], pd.Series):
+            low_values = pd.Series(df['Low'].values.flatten() if hasattr(df['Low'], 'values') and df['Low'].values.ndim > 1 else df['Low'])
+        else:
+            low_values = df['Low']
+            
+        if not isinstance(df['Volume'], pd.Series):
+            volume_values = pd.Series(df['Volume'].values.flatten() if hasattr(df['Volume'], 'values') and df['Volume'].values.ndim > 1 else df['Volume'])
+        else:
+            volume_values = df['Volume']
         
         # Moving averages
         df_with_indicators['SMA_20'] = ta.trend.sma_indicator(close_values, window=20)
@@ -87,92 +103,133 @@ def get_technical_signals(df_with_indicators):
         # Get the latest data point
         latest = df_with_indicators.iloc[-1]
         
-        # RSI Signals
-        if latest['RSI'] < 30:
-            signals['RSI'] = {
-                'signal': 'BUY',
-                'value': f"{latest['RSI']:.2f}",
-                'explanation': 'RSI below 30 indicates oversold conditions'
-            }
-        elif latest['RSI'] > 70:
-            signals['RSI'] = {
-                'signal': 'SELL',
-                'value': f"{latest['RSI']:.2f}",
-                'explanation': 'RSI above 70 indicates overbought conditions'
-            }
+        # Check if RSI is available (not NaN)
+        if 'RSI' in latest and pd.notna(latest['RSI']):
+            # RSI Signals
+            if latest['RSI'] < 30:
+                signals['RSI'] = {
+                    'signal': 'BUY',
+                    'value': f"{latest['RSI']:.2f}",
+                    'explanation': 'RSI below 30 indicates oversold conditions'
+                }
+            elif latest['RSI'] > 70:
+                signals['RSI'] = {
+                    'signal': 'SELL',
+                    'value': f"{latest['RSI']:.2f}",
+                    'explanation': 'RSI above 70 indicates overbought conditions'
+                }
+            else:
+                signals['RSI'] = {
+                    'signal': 'NEUTRAL',
+                    'value': f"{latest['RSI']:.2f}",
+                    'explanation': 'RSI between 30-70 indicates neutral conditions'
+                }
         else:
+            # If RSI is not available, add a placeholder
             signals['RSI'] = {
                 'signal': 'NEUTRAL',
-                'value': f"{latest['RSI']:.2f}",
-                'explanation': 'RSI between 30-70 indicates neutral conditions'
+                'value': 'N/A',
+                'explanation': 'RSI data not available'
             }
         
-        # MACD Signals
-        if latest['MACD'] > latest['MACD_Signal']:
+        # Check if MACD is available
+        if 'MACD' in latest and 'MACD_Signal' in latest and pd.notna(latest['MACD']) and pd.notna(latest['MACD_Signal']):
+            # MACD Signals
+            if latest['MACD'] > latest['MACD_Signal']:
+                signals['MACD'] = {
+                    'signal': 'BUY',
+                    'value': f"{latest['MACD']:.2f}",
+                    'explanation': 'MACD above signal line suggests bullish momentum'
+                }
+            else:
+                signals['MACD'] = {
+                    'signal': 'SELL',
+                    'value': f"{latest['MACD']:.2f}",
+                    'explanation': 'MACD below signal line suggests bearish momentum'
+                }
+        else:
             signals['MACD'] = {
-                'signal': 'BUY',
-                'value': f"{latest['MACD']:.2f}",
-                'explanation': 'MACD above signal line suggests bullish momentum'
-            }
-        else:
-            signals['MACD'] = {
-                'signal': 'SELL',
-                'value': f"{latest['MACD']:.2f}",
-                'explanation': 'MACD below signal line suggests bearish momentum'
+                'signal': 'NEUTRAL',
+                'value': 'N/A',
+                'explanation': 'MACD data not available'
             }
         
-        # Moving Average Signals
-        if latest['Close'] > latest['SMA_50']:
-            signals['SMA'] = {
-                'signal': 'BUY',
-                'value': f"{latest['SMA_50']:.2f}",
-                'explanation': 'Price above 50-day SMA indicates uptrend'
-            }
+        # Check if SMA_50 is available
+        if 'SMA_50' in latest and pd.notna(latest['SMA_50']):
+            # Moving Average Signals
+            if latest['Close'] > latest['SMA_50']:
+                signals['SMA'] = {
+                    'signal': 'BUY',
+                    'value': f"{latest['SMA_50']:.2f}",
+                    'explanation': 'Price above 50-day SMA indicates uptrend'
+                }
+            else:
+                signals['SMA'] = {
+                    'signal': 'SELL',
+                    'value': f"{latest['SMA_50']:.2f}",
+                    'explanation': 'Price below 50-day SMA indicates downtrend'
+                }
         else:
             signals['SMA'] = {
-                'signal': 'SELL',
-                'value': f"{latest['SMA_50']:.2f}",
-                'explanation': 'Price below 50-day SMA indicates downtrend'
+                'signal': 'NEUTRAL',
+                'value': 'N/A',
+                'explanation': 'SMA data not available'
             }
         
-        # Bollinger Bands Signals
-        if latest['Close'] < latest['BB_Low']:
-            signals['Bollinger'] = {
-                'signal': 'BUY',
-                'value': f"{latest['BB_Width']:.2f}",
-                'explanation': 'Price below lower Bollinger Band suggests oversold conditions'
-            }
-        elif latest['Close'] > latest['BB_High']:
-            signals['Bollinger'] = {
-                'signal': 'SELL',
-                'value': f"{latest['BB_Width']:.2f}",
-                'explanation': 'Price above upper Bollinger Band suggests overbought conditions'
-            }
+        # Check if Bollinger Bands are available
+        if 'BB_Low' in latest and 'BB_High' in latest and 'BB_Width' in latest and pd.notna(latest['BB_Low']) and pd.notna(latest['BB_High']) and pd.notna(latest['BB_Width']):
+            # Bollinger Bands Signals
+            if latest['Close'] < latest['BB_Low']:
+                signals['Bollinger'] = {
+                    'signal': 'BUY',
+                    'value': f"{latest['BB_Width']:.2f}",
+                    'explanation': 'Price below lower Bollinger Band suggests oversold conditions'
+                }
+            elif latest['Close'] > latest['BB_High']:
+                signals['Bollinger'] = {
+                    'signal': 'SELL',
+                    'value': f"{latest['BB_Width']:.2f}",
+                    'explanation': 'Price above upper Bollinger Band suggests overbought conditions'
+                }
+            else:
+                signals['Bollinger'] = {
+                    'signal': 'NEUTRAL',
+                    'value': f"{latest['BB_Width']:.2f}",
+                    'explanation': 'Price within Bollinger Bands suggests neutral conditions'
+                }
         else:
             signals['Bollinger'] = {
                 'signal': 'NEUTRAL',
-                'value': f"{latest['BB_Width']:.2f}",
-                'explanation': 'Price within Bollinger Bands suggests neutral conditions'
+                'value': 'N/A',
+                'explanation': 'Bollinger Bands data not available'
             }
         
-        # Stochastic Oscillator Signals
-        if latest['Stoch_k'] < 20:
-            signals['Stochastic'] = {
-                'signal': 'BUY',
-                'value': f"{latest['Stoch_k']:.2f}",
-                'explanation': 'Stochastic below 20 indicates oversold conditions'
-            }
-        elif latest['Stoch_k'] > 80:
-            signals['Stochastic'] = {
-                'signal': 'SELL',
-                'value': f"{latest['Stoch_k']:.2f}",
-                'explanation': 'Stochastic above 80 indicates overbought conditions'
-            }
+        # Check if Stochastic is available
+        if 'Stoch_k' in latest and pd.notna(latest['Stoch_k']):
+            # Stochastic Oscillator Signals
+            if latest['Stoch_k'] < 20:
+                signals['Stochastic'] = {
+                    'signal': 'BUY',
+                    'value': f"{latest['Stoch_k']:.2f}",
+                    'explanation': 'Stochastic below 20 indicates oversold conditions'
+                }
+            elif latest['Stoch_k'] > 80:
+                signals['Stochastic'] = {
+                    'signal': 'SELL',
+                    'value': f"{latest['Stoch_k']:.2f}",
+                    'explanation': 'Stochastic above 80 indicates overbought conditions'
+                }
+            else:
+                signals['Stochastic'] = {
+                    'signal': 'NEUTRAL',
+                    'value': f"{latest['Stoch_k']:.2f}",
+                    'explanation': 'Stochastic between 20-80 indicates neutral conditions'
+                }
         else:
             signals['Stochastic'] = {
                 'signal': 'NEUTRAL',
-                'value': f"{latest['Stoch_k']:.2f}",
-                'explanation': 'Stochastic between 20-80 indicates neutral conditions'
+                'value': 'N/A',
+                'explanation': 'Stochastic data not available'
             }
             
         # Overall signal (simple majority voting)
@@ -225,11 +282,19 @@ def plot_indicators(df_with_indicators, ticker_symbol):
         
         # Price and moving averages
         axes[0].plot(df_with_indicators.index, df_with_indicators['Close'], label='Close Price', color='blue')
-        axes[0].plot(df_with_indicators.index, df_with_indicators['SMA_20'], label='SMA (20)', color='orange', alpha=0.7)
-        axes[0].plot(df_with_indicators.index, df_with_indicators['SMA_50'], label='SMA (50)', color='green', alpha=0.7)
-        axes[0].plot(df_with_indicators.index, df_with_indicators['BB_High'], label='Bollinger High', color='red', linestyle='--', alpha=0.5)
-        axes[0].plot(df_with_indicators.index, df_with_indicators['BB_Low'], label='Bollinger Low', color='red', linestyle='--', alpha=0.5)
-        axes[0].fill_between(df_with_indicators.index, df_with_indicators['BB_High'], df_with_indicators['BB_Low'], color='red', alpha=0.1)
+        
+        # Only plot indicators if they exist
+        if 'SMA_20' in df_with_indicators.columns and not df_with_indicators['SMA_20'].isna().all():
+            axes[0].plot(df_with_indicators.index, df_with_indicators['SMA_20'], label='SMA (20)', color='orange', alpha=0.7)
+        
+        if 'SMA_50' in df_with_indicators.columns and not df_with_indicators['SMA_50'].isna().all():
+            axes[0].plot(df_with_indicators.index, df_with_indicators['SMA_50'], label='SMA (50)', color='green', alpha=0.7)
+        
+        if ('BB_High' in df_with_indicators.columns and 'BB_Low' in df_with_indicators.columns and
+            not df_with_indicators['BB_High'].isna().all() and not df_with_indicators['BB_Low'].isna().all()):
+            axes[0].plot(df_with_indicators.index, df_with_indicators['BB_High'], label='Bollinger High', color='red', linestyle='--', alpha=0.5)
+            axes[0].plot(df_with_indicators.index, df_with_indicators['BB_Low'], label='Bollinger Low', color='red', linestyle='--', alpha=0.5)
+            axes[0].fill_between(df_with_indicators.index, df_with_indicators['BB_High'], df_with_indicators['BB_Low'], color='red', alpha=0.1)
         
         axes[0].set_title(f'Price and Moving Averages for {ticker_symbol}')
         axes[0].set_ylabel('Price')
@@ -237,51 +302,79 @@ def plot_indicators(df_with_indicators, ticker_symbol):
         axes[0].grid(True, alpha=0.3)
         
         # Volume
-        axes[1].bar(df_with_indicators.index, df_with_indicators['Volume'], color='blue', alpha=0.5)
-        axes[1].set_ylabel('Volume')
-        axes[1].grid(True, alpha=0.3)
+        if 'Volume' in df_with_indicators.columns:
+            axes[1].bar(df_with_indicators.index, df_with_indicators['Volume'], color='blue', alpha=0.5)
+            axes[1].set_ylabel('Volume')
+            axes[1].grid(True, alpha=0.3)
         
         plt.tight_layout()
         
-        # Create figure for RSI and MACD
-        fig2, axes = plt.subplots(3, 1, figsize=(10, 10), gridspec_kw={'height_ratios': [1, 1, 1]})
+        # Check if there are any indicators to plot
+        has_rsi = 'RSI' in df_with_indicators.columns and not df_with_indicators['RSI'].isna().all()
+        has_macd = ('MACD' in df_with_indicators.columns and 'MACD_Signal' in df_with_indicators.columns and 
+                    not df_with_indicators['MACD'].isna().all())
+        has_stoch = ('Stoch_k' in df_with_indicators.columns and 'Stoch_d' in df_with_indicators.columns and 
+                     not df_with_indicators['Stoch_k'].isna().all())
         
-        # RSI
-        axes[0].plot(df_with_indicators.index, df_with_indicators['RSI'], color='purple')
-        axes[0].axhline(y=70, color='red', linestyle='--', alpha=0.5)
-        axes[0].axhline(y=30, color='green', linestyle='--', alpha=0.5)
-        axes[0].fill_between(df_with_indicators.index, df_with_indicators['RSI'], 70, where=(df_with_indicators['RSI'] >= 70), color='red', alpha=0.3)
-        axes[0].fill_between(df_with_indicators.index, df_with_indicators['RSI'], 30, where=(df_with_indicators['RSI'] <= 30), color='green', alpha=0.3)
-        axes[0].set_title('RSI (Relative Strength Index)')
-        axes[0].set_ylabel('RSI')
-        axes[0].set_ylim(0, 100)
-        axes[0].grid(True, alpha=0.3)
-        
-        # MACD
-        axes[1].plot(df_with_indicators.index, df_with_indicators['MACD'], label='MACD', color='blue')
-        axes[1].plot(df_with_indicators.index, df_with_indicators['MACD_Signal'], label='Signal', color='red')
-        axes[1].bar(df_with_indicators.index, df_with_indicators['MACD_Hist'], label='Histogram', color='green', alpha=0.5)
-        axes[1].set_title('MACD (Moving Average Convergence Divergence)')
-        axes[1].set_ylabel('MACD')
-        axes[1].legend()
-        axes[1].grid(True, alpha=0.3)
-        
-        # Stochastic
-        axes[2].plot(df_with_indicators.index, df_with_indicators['Stoch_k'], label='%K', color='blue')
-        axes[2].plot(df_with_indicators.index, df_with_indicators['Stoch_d'], label='%D', color='red')
-        axes[2].axhline(y=80, color='red', linestyle='--', alpha=0.5)
-        axes[2].axhline(y=20, color='green', linestyle='--', alpha=0.5)
-        axes[2].fill_between(df_with_indicators.index, df_with_indicators['Stoch_k'], 80, where=(df_with_indicators['Stoch_k'] >= 80), color='red', alpha=0.3)
-        axes[2].fill_between(df_with_indicators.index, df_with_indicators['Stoch_k'], 20, where=(df_with_indicators['Stoch_k'] <= 20), color='green', alpha=0.3)
-        axes[2].set_title('Stochastic Oscillator')
-        axes[2].set_ylabel('Stochastic')
-        axes[2].set_ylim(0, 100)
-        axes[2].legend()
-        axes[2].grid(True, alpha=0.3)
-        
-        plt.tight_layout()
-        
-        return fig1, fig2
+        if has_rsi or has_macd or has_stoch:
+            # Create figure for RSI, MACD and Stochastic
+            fig2, axes = plt.subplots(3, 1, figsize=(10, 10), gridspec_kw={'height_ratios': [1, 1, 1]})
+            
+            # RSI
+            if has_rsi:
+                axes[0].plot(df_with_indicators.index, df_with_indicators['RSI'], color='purple')
+                axes[0].axhline(y=70, color='red', linestyle='--', alpha=0.5)
+                axes[0].axhline(y=30, color='green', linestyle='--', alpha=0.5)
+                axes[0].fill_between(df_with_indicators.index, df_with_indicators['RSI'], 70, 
+                                    where=(df_with_indicators['RSI'] >= 70), color='red', alpha=0.3)
+                axes[0].fill_between(df_with_indicators.index, df_with_indicators['RSI'], 30, 
+                                    where=(df_with_indicators['RSI'] <= 30), color='green', alpha=0.3)
+                axes[0].set_title('RSI (Relative Strength Index)')
+                axes[0].set_ylabel('RSI')
+                axes[0].set_ylim(0, 100)
+                axes[0].grid(True, alpha=0.3)
+            else:
+                axes[0].set_title('RSI - Data Not Available')
+                axes[0].grid(True, alpha=0.3)
+            
+            # MACD
+            if has_macd:
+                axes[1].plot(df_with_indicators.index, df_with_indicators['MACD'], label='MACD', color='blue')
+                axes[1].plot(df_with_indicators.index, df_with_indicators['MACD_Signal'], label='Signal', color='red')
+                if 'MACD_Hist' in df_with_indicators.columns:
+                    axes[1].bar(df_with_indicators.index, df_with_indicators['MACD_Hist'], label='Histogram', color='green', alpha=0.5)
+                axes[1].set_title('MACD (Moving Average Convergence Divergence)')
+                axes[1].set_ylabel('MACD')
+                axes[1].legend()
+                axes[1].grid(True, alpha=0.3)
+            else:
+                axes[1].set_title('MACD - Data Not Available')
+                axes[1].grid(True, alpha=0.3)
+            
+            # Stochastic
+            if has_stoch:
+                axes[2].plot(df_with_indicators.index, df_with_indicators['Stoch_k'], label='%K', color='blue')
+                axes[2].plot(df_with_indicators.index, df_with_indicators['Stoch_d'], label='%D', color='red')
+                axes[2].axhline(y=80, color='red', linestyle='--', alpha=0.5)
+                axes[2].axhline(y=20, color='green', linestyle='--', alpha=0.5)
+                axes[2].fill_between(df_with_indicators.index, df_with_indicators['Stoch_k'], 80, 
+                                    where=(df_with_indicators['Stoch_k'] >= 80), color='red', alpha=0.3)
+                axes[2].fill_between(df_with_indicators.index, df_with_indicators['Stoch_k'], 20, 
+                                    where=(df_with_indicators['Stoch_k'] <= 20), color='green', alpha=0.3)
+                axes[2].set_title('Stochastic Oscillator')
+                axes[2].set_ylabel('Stochastic')
+                axes[2].set_ylim(0, 100)
+                axes[2].legend()
+                axes[2].grid(True, alpha=0.3)
+            else:
+                axes[2].set_title('Stochastic Oscillator - Data Not Available')
+                axes[2].grid(True, alpha=0.3)
+            
+            plt.tight_layout()
+            
+            return fig1, fig2
+        else:
+            return fig1, None
         
     except Exception as e:
         st.error(f"Error plotting technical indicators: {str(e)}")
@@ -347,10 +440,12 @@ def display_technical_dashboard(df_with_indicators, ticker_symbol):
         # Plot technical indicators
         fig1, fig2 = plot_indicators(df_with_indicators, ticker_symbol)
         
-        if fig1 and fig2:
+        if fig1:
             st.subheader("Technical Charts")
             st.pyplot(fig1)
-            st.pyplot(fig2)
+            
+            if fig2:
+                st.pyplot(fig2)
             
         # Display technical data table (last few rows)
         with st.expander("View Technical Data"):
