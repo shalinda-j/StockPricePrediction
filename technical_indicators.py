@@ -283,32 +283,43 @@ def plot_indicators(df_with_indicators, ticker_symbol):
         # Create figure for price and moving averages
         fig1, axes = plt.subplots(2, 1, figsize=(10, 8), gridspec_kw={'height_ratios': [2, 1]})
         
-        # Price and moving averages
-        axes[0].plot(df_with_indicators.index, df_with_indicators['Close'], label='Close Price', color='blue')
-        
-        # Only plot indicators if they exist
-        if 'SMA_20' in df_with_indicators.columns and not df_with_indicators['SMA_20'].isna().all():
-            axes[0].plot(df_with_indicators.index, df_with_indicators['SMA_20'], label='SMA (20)', color='orange', alpha=0.7)
-        
-        if 'SMA_50' in df_with_indicators.columns and not df_with_indicators['SMA_50'].isna().all():
-            axes[0].plot(df_with_indicators.index, df_with_indicators['SMA_50'], label='SMA (50)', color='green', alpha=0.7)
-        
-        if ('BB_High' in df_with_indicators.columns and 'BB_Low' in df_with_indicators.columns and
-            not df_with_indicators['BB_High'].isna().all() and not df_with_indicators['BB_Low'].isna().all()):
-            axes[0].plot(df_with_indicators.index, df_with_indicators['BB_High'], label='Bollinger High', color='red', linestyle='--', alpha=0.5)
-            axes[0].plot(df_with_indicators.index, df_with_indicators['BB_Low'], label='Bollinger Low', color='red', linestyle='--', alpha=0.5)
-            axes[0].fill_between(df_with_indicators.index, df_with_indicators['BB_High'], df_with_indicators['BB_Low'], color='red', alpha=0.1)
+        # Make sure we have valid data before plotting
+        if 'Close' in df_with_indicators.columns and not df_with_indicators['Close'].isna().all():
+            # Price and moving averages
+            axes[0].plot(df_with_indicators.index, df_with_indicators['Close'], label='Close Price', color='blue')
+            
+            # Only plot indicators if they exist
+            if 'SMA_20' in df_with_indicators.columns and not df_with_indicators['SMA_20'].isna().all():
+                axes[0].plot(df_with_indicators.index, df_with_indicators['SMA_20'], label='SMA (20)', color='orange', alpha=0.7)
+            
+            if 'SMA_50' in df_with_indicators.columns and not df_with_indicators['SMA_50'].isna().all():
+                axes[0].plot(df_with_indicators.index, df_with_indicators['SMA_50'], label='SMA (50)', color='green', alpha=0.7)
+            
+            # Check for Bollinger Bands and make sure they're valid
+            if ('BB_High' in df_with_indicators.columns and 'BB_Low' in df_with_indicators.columns and
+                not df_with_indicators['BB_High'].isna().all() and not df_with_indicators['BB_Low'].isna().all()):
+                # Filter out NaN values to avoid plotting issues
+                valid_indices = df_with_indicators[df_with_indicators['BB_High'].notna() & df_with_indicators['BB_Low'].notna()].index
+                if len(valid_indices) > 0:
+                    valid_high = df_with_indicators.loc[valid_indices, 'BB_High']
+                    valid_low = df_with_indicators.loc[valid_indices, 'BB_Low']
+                    axes[0].plot(valid_indices, valid_high, label='Bollinger High', color='red', linestyle='--', alpha=0.5)
+                    axes[0].plot(valid_indices, valid_low, label='Bollinger Low', color='red', linestyle='--', alpha=0.5)
+                    axes[0].fill_between(valid_indices, valid_high, valid_low, color='red', alpha=0.1)
         
         axes[0].set_title(f'Price and Moving Averages for {ticker_symbol}')
         axes[0].set_ylabel('Price')
         axes[0].legend()
         axes[0].grid(True, alpha=0.3)
         
-        # Volume
-        if 'Volume' in df_with_indicators.columns:
-            axes[1].bar(df_with_indicators.index, df_with_indicators['Volume'], color='blue', alpha=0.5)
-            axes[1].set_ylabel('Volume')
-            axes[1].grid(True, alpha=0.3)
+        # Volume - ensure it's valid before plotting
+        if 'Volume' in df_with_indicators.columns and not df_with_indicators['Volume'].isna().all():
+            valid_indices = df_with_indicators[df_with_indicators['Volume'].notna()].index
+            if len(valid_indices) > 0:
+                valid_volume = df_with_indicators.loc[valid_indices, 'Volume']
+                axes[1].bar(valid_indices, valid_volume, color='blue', alpha=0.5)
+                axes[1].set_ylabel('Volume')
+                axes[1].grid(True, alpha=0.3)
         
         plt.tight_layout()
         
@@ -323,58 +334,107 @@ def plot_indicators(df_with_indicators, ticker_symbol):
             # Create figure for RSI, MACD and Stochastic
             fig2, axes = plt.subplots(3, 1, figsize=(10, 10), gridspec_kw={'height_ratios': [1, 1, 1]})
             
-            # RSI
+            # RSI - with additional validation
             if has_rsi:
-                axes[0].plot(df_with_indicators.index, df_with_indicators['RSI'], color='purple')
-                axes[0].axhline(y=70, color='red', linestyle='--', alpha=0.5)
-                axes[0].axhline(y=30, color='green', linestyle='--', alpha=0.5)
-                # Use numpy arrays for comparison to avoid Series truth value ambiguity
-                oversold = df_with_indicators['RSI'].ge(70).to_numpy()
-                overbought = df_with_indicators['RSI'].le(30).to_numpy()
-                axes[0].fill_between(df_with_indicators.index, df_with_indicators['RSI'], 70, 
-                                    where=oversold, color='red', alpha=0.3)
-                axes[0].fill_between(df_with_indicators.index, df_with_indicators['RSI'], 30, 
-                                    where=overbought, color='green', alpha=0.3)
-                axes[0].set_title('RSI (Relative Strength Index)')
-                axes[0].set_ylabel('RSI')
-                axes[0].set_ylim(0, 100)
-                axes[0].grid(True, alpha=0.3)
+                valid_indices = df_with_indicators[df_with_indicators['RSI'].notna()].index
+                if len(valid_indices) > 0:
+                    valid_rsi = df_with_indicators.loc[valid_indices, 'RSI']
+                    axes[0].plot(valid_indices, valid_rsi, color='purple')
+                    axes[0].axhline(y=70, color='red', linestyle='--', alpha=0.5)
+                    axes[0].axhline(y=30, color='green', linestyle='--', alpha=0.5)
+                    
+                    # Create masks for oversold and overbought conditions
+                    oversold_mask = valid_rsi >= 70
+                    overbought_mask = valid_rsi <= 30
+                    
+                    # Only fill_between when we have valid data points that meet the condition
+                    if oversold_mask.any():
+                        oversold_indices = valid_indices[oversold_mask]
+                        oversold_values = valid_rsi[oversold_mask]
+                        axes[0].fill_between(oversold_indices, oversold_values, 70, color='red', alpha=0.3)
+                    
+                    if overbought_mask.any():
+                        overbought_indices = valid_indices[overbought_mask]
+                        overbought_values = valid_rsi[overbought_mask]
+                        axes[0].fill_between(overbought_indices, overbought_values, 30, color='green', alpha=0.3)
+                    
+                    axes[0].set_title('RSI (Relative Strength Index)')
+                    axes[0].set_ylabel('RSI')
+                    axes[0].set_ylim(0, 100)
+                    axes[0].grid(True, alpha=0.3)
+                else:
+                    axes[0].set_title('RSI - Insufficient Data')
+                    axes[0].grid(True, alpha=0.3)
             else:
                 axes[0].set_title('RSI - Data Not Available')
                 axes[0].grid(True, alpha=0.3)
             
-            # MACD
+            # MACD - with additional validation
             if has_macd:
-                axes[1].plot(df_with_indicators.index, df_with_indicators['MACD'], label='MACD', color='blue')
-                axes[1].plot(df_with_indicators.index, df_with_indicators['MACD_Signal'], label='Signal', color='red')
-                if 'MACD_Hist' in df_with_indicators.columns:
-                    axes[1].bar(df_with_indicators.index, df_with_indicators['MACD_Hist'], label='Histogram', color='green', alpha=0.5)
-                axes[1].set_title('MACD (Moving Average Convergence Divergence)')
-                axes[1].set_ylabel('MACD')
-                axes[1].legend()
-                axes[1].grid(True, alpha=0.3)
+                valid_indices = df_with_indicators[df_with_indicators['MACD'].notna() & 
+                                                 df_with_indicators['MACD_Signal'].notna()].index
+                if len(valid_indices) > 0:
+                    axes[1].plot(valid_indices, df_with_indicators.loc[valid_indices, 'MACD'], 
+                                label='MACD', color='blue')
+                    axes[1].plot(valid_indices, df_with_indicators.loc[valid_indices, 'MACD_Signal'], 
+                                label='Signal', color='red')
+                    
+                    if 'MACD_Hist' in df_with_indicators.columns:
+                        hist_indices = df_with_indicators[df_with_indicators['MACD_Hist'].notna()].index
+                        if len(hist_indices) > 0:
+                            axes[1].bar(hist_indices, df_with_indicators.loc[hist_indices, 'MACD_Hist'], 
+                                      label='Histogram', color='green', alpha=0.5)
+                    
+                    axes[1].set_title('MACD (Moving Average Convergence Divergence)')
+                    axes[1].set_ylabel('MACD')
+                    axes[1].legend()
+                    axes[1].grid(True, alpha=0.3)
+                else:
+                    axes[1].set_title('MACD - Insufficient Data')
+                    axes[1].grid(True, alpha=0.3)
             else:
                 axes[1].set_title('MACD - Data Not Available')
                 axes[1].grid(True, alpha=0.3)
             
-            # Stochastic
+            # Stochastic - with additional validation
             if has_stoch:
-                axes[2].plot(df_with_indicators.index, df_with_indicators['Stoch_k'], label='%K', color='blue')
-                axes[2].plot(df_with_indicators.index, df_with_indicators['Stoch_d'], label='%D', color='red')
-                axes[2].axhline(y=80, color='red', linestyle='--', alpha=0.5)
-                axes[2].axhline(y=20, color='green', linestyle='--', alpha=0.5)
-                # Use numpy arrays for comparison to avoid Series truth value ambiguity
-                stoch_overbought = df_with_indicators['Stoch_k'].ge(80).to_numpy()
-                stoch_oversold = df_with_indicators['Stoch_k'].le(20).to_numpy()
-                axes[2].fill_between(df_with_indicators.index, df_with_indicators['Stoch_k'], 80, 
-                                    where=stoch_overbought, color='red', alpha=0.3)
-                axes[2].fill_between(df_with_indicators.index, df_with_indicators['Stoch_k'], 20, 
-                                    where=stoch_oversold, color='green', alpha=0.3)
-                axes[2].set_title('Stochastic Oscillator')
-                axes[2].set_ylabel('Stochastic')
-                axes[2].set_ylim(0, 100)
-                axes[2].legend()
-                axes[2].grid(True, alpha=0.3)
+                valid_indices = df_with_indicators[df_with_indicators['Stoch_k'].notna()].index
+                if len(valid_indices) > 0:
+                    valid_stoch_k = df_with_indicators.loc[valid_indices, 'Stoch_k']
+                    axes[2].plot(valid_indices, valid_stoch_k, label='%K', color='blue')
+                    
+                    if 'Stoch_d' in df_with_indicators.columns and not df_with_indicators['Stoch_d'].isna().all():
+                        valid_d_indices = df_with_indicators[df_with_indicators['Stoch_d'].notna()].index
+                        if len(valid_d_indices) > 0:
+                            axes[2].plot(valid_d_indices, df_with_indicators.loc[valid_d_indices, 'Stoch_d'], 
+                                      label='%D', color='red')
+                    
+                    axes[2].axhline(y=80, color='red', linestyle='--', alpha=0.5)
+                    axes[2].axhline(y=20, color='green', linestyle='--', alpha=0.5)
+                    
+                    # Create masks for oversold and overbought conditions
+                    overbought_mask = valid_stoch_k >= 80
+                    oversold_mask = valid_stoch_k <= 20
+                    
+                    # Only fill_between when we have valid data points that meet the condition
+                    if overbought_mask.any():
+                        overbought_indices = valid_indices[overbought_mask]
+                        overbought_values = valid_stoch_k[overbought_mask]
+                        axes[2].fill_between(overbought_indices, overbought_values, 80, color='red', alpha=0.3)
+                    
+                    if oversold_mask.any():
+                        oversold_indices = valid_indices[oversold_mask]
+                        oversold_values = valid_stoch_k[oversold_mask]
+                        axes[2].fill_between(oversold_indices, oversold_values, 20, color='green', alpha=0.3)
+                    
+                    axes[2].set_title('Stochastic Oscillator')
+                    axes[2].set_ylabel('Stochastic')
+                    axes[2].set_ylim(0, 100)
+                    axes[2].legend()
+                    axes[2].grid(True, alpha=0.3)
+                else:
+                    axes[2].set_title('Stochastic Oscillator - Insufficient Data')
+                    axes[2].grid(True, alpha=0.3)
             else:
                 axes[2].set_title('Stochastic Oscillator - Data Not Available')
                 axes[2].grid(True, alpha=0.3)
