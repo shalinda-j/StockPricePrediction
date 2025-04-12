@@ -60,47 +60,42 @@ def prepare_data_for_lr(df, test_size=0.2):
     
     return X_train, X_test, y_train, y_test, scaler
 
-def prepare_data_for_lstm(df, sequence_length=30, test_size=0.2):
+def prepare_data_for_random_forest(df, test_size=0.2, window_size=5):
     """
-    Prepare data for LSTM model.
+    Prepare data for Random Forest model.
     
     Args:
         df (pandas.DataFrame): DataFrame with 'Close' price
-        sequence_length (int): Number of previous days to use for prediction
         test_size (float): Proportion of data to use for testing
+        window_size (int): Number of previous days to use for features
         
     Returns:
-        tuple: (X_train, X_test, y_train, y_test, scaler, last_sequence)
+        tuple: (X_train, X_test, y_train, y_test, scaler)
     """
     # Create a copy of the dataframe
     data = df.copy()
     
-    # Extract only the 'Close' prices
-    close_prices = data['Close'].values.reshape(-1, 1)
-    
-    # Scale the data
+    # Scale the 'Close' price
     scaler = MinMaxScaler(feature_range=(0, 1))
-    scaled_data = scaler.fit_transform(close_prices)
+    close_price_scaled = scaler.fit_transform(data[['Close']])
+    data['Close_Scaled'] = close_price_scaled.flatten()
     
-    # Create sequences for LSTM
-    X, y = [], []
-    for i in range(sequence_length, len(scaled_data)):
-        X.append(scaled_data[i-sequence_length:i, 0])
-        y.append(scaled_data[i, 0])
+    # Create lag features
+    for i in range(1, window_size + 1):
+        data[f'Lag_{i}'] = data['Close_Scaled'].shift(i)
     
-    # Convert to numpy arrays
-    X, y = np.array(X), np.array(y)
+    # Drop rows with NaN values (from lag creation)
+    data = data.dropna()
     
-    # Reshape for LSTM [samples, time steps, features]
-    X = np.reshape(X, (X.shape[0], X.shape[1], 1))
+    # Create time index feature
+    data['Time_Index'] = np.arange(len(data))
+    
+    # Create features (X) and target (y)
+    lag_columns = [f'Lag_{i}' for i in range(1, window_size + 1)]
+    X = data[['Time_Index'] + lag_columns]
+    y = data['Close_Scaled']
     
     # Split the data into training and testing sets
-    split_idx = int(len(X) * (1 - test_size))
-    X_train, X_test = X[:split_idx], X[split_idx:]
-    y_train, y_test = y[:split_idx], y[split_idx:]
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, shuffle=False)
     
-    # Get the last sequence for future prediction
-    last_sequence = scaled_data[-sequence_length:]
-    last_sequence = np.reshape(last_sequence, (1, sequence_length, 1))
-    
-    return X_train, X_test, y_train, y_test, scaler, last_sequence
+    return X_train, X_test, y_train, y_test, scaler

@@ -7,8 +7,8 @@ from datetime import datetime, timedelta
 import os
 
 from data_fetcher import fetch_stock_data, fetch_crypto_data
-from data_processor import preprocess_data, prepare_data_for_lstm, prepare_data_for_lr
-from models import train_linear_regression, train_lstm_model, predict_prices
+from data_processor import preprocess_data, prepare_data_for_lr, prepare_data_for_random_forest
+from models import train_linear_regression, train_random_forest, predict_prices
 from visualizer import plot_stock_data, plot_prediction_vs_actual
 from utils import calculate_metrics, get_default_end_date, get_default_start_date
 
@@ -48,18 +48,18 @@ with col2:
 # Model selection
 model_type = st.sidebar.selectbox(
     "Select Model:",
-    ("Linear Regression", "LSTM (Long Short-Term Memory)")
+    ("Linear Regression", "Random Forest")
 )
 
-# LSTM parameters if LSTM is selected
-if model_type == "LSTM (Long Short-Term Memory)":
-    sequence_length = st.sidebar.slider("Sequence Length (days):", 5, 60, 30)
-    epochs = st.sidebar.slider("Training Epochs:", 10, 100, 50)
+# Random Forest parameters if selected
+if model_type == "Random Forest":
+    window_size = st.sidebar.slider("Window Size (days):", 1, 15, 5)
+    n_estimators = st.sidebar.slider("Number of Trees:", 10, 200, 100)
     prediction_days = st.sidebar.slider("Days to Predict:", 1, 30, 7)
 else:
     prediction_days = st.sidebar.slider("Days to Predict:", 1, 30, 7)
-    sequence_length = 0  # Not used for Linear Regression
-    epochs = 0  # Not used for Linear Regression
+    window_size = 5  # Default for Random Forest
+    n_estimators = 100  # Default for Random Forest
 
 # Button to start prediction
 predict_button = st.sidebar.button("Predict Prices")
@@ -92,14 +92,16 @@ if predict_button:
                     if model_type == "Linear Regression":
                         X_train, X_test, y_train, y_test, scaler = prepare_data_for_lr(processed_df)
                         model = train_linear_regression(X_train, y_train)
-                    else:  # LSTM
-                        X_train, X_test, y_train, y_test, scaler, last_sequence = prepare_data_for_lstm(processed_df, sequence_length)
-                        model = train_lstm_model(X_train, y_train, sequence_length, epochs)
+                    else:  # Random Forest
+                        X_train, X_test, y_train, y_test, scaler = prepare_data_for_random_forest(
+                            processed_df, window_size=window_size
+                        )
+                        model = train_random_forest(X_train, y_train, n_estimators=n_estimators)
                     
                     # Make predictions
                     actual_prices, predicted_prices, future_dates, future_predictions = predict_prices(
                         model, X_test, y_test, processed_df, scaler, model_type, 
-                        prediction_days, sequence_length, last_sequence if model_type == "LSTM (Long Short-Term Memory)" else None
+                        prediction_days
                     )
                     
                     # Calculate metrics
@@ -151,7 +153,7 @@ st.markdown("""
 ### About This App
 This app uses historical stock/cryptocurrency data to predict future prices using machine learning models:
 - **Linear Regression**: A simple model that predicts based on linear relationships in the data
-- **LSTM**: A deep learning model designed to remember patterns in sequential data
+- **Random Forest**: An ensemble learning method that builds multiple decision trees and merges their predictions
 
 ### Metrics Explanation
 - **MAE**: Mean Absolute Error - Average absolute difference between predictions and actual prices
