@@ -337,17 +337,58 @@ def display_prediction_model(ticker_symbol, df_with_indicators):
                 st.subheader(f"Predicted Prices for Next {days_to_predict} Days")
                 
                 # Create DataFrame for display
+                # Ensure all values are scalar, not Series
+                dates_list = []
+                for d in future_dates:
+                    if isinstance(d, str):
+                        dates_list.append(d)
+                    elif hasattr(d, 'item'):
+                        dates_list.append(d.item())
+                    elif hasattr(d, 'iloc') and hasattr(d, '__len__') and len(d) > 0:
+                        dates_list.append(str(d.iloc[0]))
+                    else:
+                        dates_list.append(str(d))
+                # Ensure all prediction values are scalar numbers
+                price_list = []
+                for p in future_predictions:
+                    if isinstance(p, (int, float)):
+                        price_list.append(float(p))
+                    elif hasattr(p, 'item'):
+                        price_list.append(float(p.item()))
+                    elif hasattr(p, 'iloc') and hasattr(p, '__len__') and len(p) > 0:
+                        price_list.append(float(p.iloc[0]))
+                    else:
+                        try:
+                            price_list.append(float(p))
+                        except (ValueError, TypeError):
+                            # If conversion fails, use a default value
+                            price_list.append(0.0)
+                change_list = [float((price - last_price) / last_price * 100) for price in price_list]
+                
                 pred_df = pd.DataFrame({
-                    'Date': future_dates,
-                    'Predicted Price': future_predictions,
-                    'Change (%)': [(price - last_price) / last_price * 100 for price in future_predictions]
+                    'Date': dates_list,
+                    'Predicted Price': price_list,
+                    'Change (%)': change_list
                 })
                 
                 st.dataframe(pred_df)
                 
                 # Calculate overall prediction signal
                 final_prediction = future_predictions[-1]
+                
+                # Convert final_prediction to scalar if it's a Series
+                if hasattr(final_prediction, 'item'):
+                    final_prediction = final_prediction.item()
+                elif hasattr(final_prediction, 'iloc') and hasattr(final_prediction, '__len__') and len(final_prediction) > 0:
+                    final_prediction = final_prediction.iloc[0]
+                    
                 pct_change = ((final_prediction - last_price) / last_price) * 100
+                
+                # Convert to float if it's a Series
+                if hasattr(pct_change, 'item'):
+                    pct_change = pct_change.item()
+                elif hasattr(pct_change, 'iloc') and hasattr(pct_change, '__len__') and len(pct_change) > 0:
+                    pct_change = pct_change.iloc[0]
                 
                 prediction_signal = "NEUTRAL"
                 if pct_change > 5:
@@ -368,8 +409,19 @@ def display_prediction_model(ticker_symbol, df_with_indicators):
                 
                 st.subheader("Prediction Summary")
                 col1, col2, col3 = st.columns(3)
+                # Ensure future_dates[-1] is a string, not a Series
+                last_date = future_dates[-1]
+                if isinstance(last_date, str):
+                    pass  # Already a string
+                elif hasattr(last_date, 'item'):
+                    last_date = last_date.item()
+                elif hasattr(last_date, 'iloc') and hasattr(last_date, '__len__') and len(last_date) > 0:
+                    last_date = str(last_date.iloc[0])
+                else:
+                    last_date = str(last_date)
+                    
                 col1.metric("Current Price", f"${last_price:.2f}")
-                col2.metric(f"Predicted Price ({future_dates[-1]})", 
+                col2.metric(f"Predicted Price ({last_date})", 
                            f"${final_prediction:.2f}", 
                            f"{pct_change:.2f}%")
                 col3.markdown(f"**Signal:** <span style='color:{signal_color}'>{prediction_signal}</span>", unsafe_allow_html=True)
