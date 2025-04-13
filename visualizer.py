@@ -19,14 +19,31 @@ def plot_stock_data(df, ticker_symbol, chart_type='line'):
     Returns:
         matplotlib.figure.Figure: Figure object with the plot
     """
+    # Make a copy of the dataframe to avoid modifying the original
+    df_copy = df.copy()
+    
     # Ensure df index is datetime
-    if not isinstance(df.index, pd.DatetimeIndex):
-        df.index = pd.to_datetime(df.index)
+    if not isinstance(df_copy.index, pd.DatetimeIndex):
+        df_copy.index = pd.to_datetime(df_copy.index)
+    
+    # Ensure all OHLC columns are numeric (float)
+    required_columns = ['Open', 'High', 'Low', 'Close']
+    for col in required_columns:
+        if col in df_copy.columns:
+            df_copy[col] = pd.to_numeric(df_copy[col], errors='coerce')
+    
+    # Check for NaN values and drop them
+    df_copy = df_copy.dropna(subset=required_columns, how='any')
     
     # Check required columns
-    required_columns = ['Open', 'High', 'Low', 'Close']
-    has_ohlc = all(col in df.columns for col in required_columns)
-    has_volume = 'Volume' in df.columns
+    has_ohlc = all(col in df_copy.columns for col in required_columns)
+    has_volume = 'Volume' in df_copy.columns
+    
+    # If Volume exists, make sure it's numeric too
+    if has_volume:
+        df_copy['Volume'] = pd.to_numeric(df_copy['Volume'], errors='coerce')
+        # Replace NaN values in Volume with 0
+        df_copy['Volume'] = df_copy['Volume'].fillna(0)
     
     # Create default style for mplfinance
     market_colors = mpf.make_marketcolors(
@@ -42,7 +59,7 @@ def plot_stock_data(df, ticker_symbol, chart_type='line'):
         fig, ax = plt.subplots(figsize=(10, 6))
         
         # Plot closing prices
-        ax.plot(df.index, df['Close'], label='Close Price', color='blue')
+        ax.plot(df_copy.index, df_copy['Close'], label='Close Price', color='blue')
         
         # Set labels and title
         ax.set_xlabel('Date')
@@ -63,8 +80,8 @@ def plot_stock_data(df, ticker_symbol, chart_type='line'):
         fig, ax = plt.subplots(figsize=(10, 6))
         
         # Plot area chart
-        ax.fill_between(df.index, df['Close'], alpha=0.3, color='blue')
-        ax.plot(df.index, df['Close'], color='blue')
+        ax.fill_between(df_copy.index, df_copy['Close'], alpha=0.3, color='blue')
+        ax.plot(df_copy.index, df_copy['Close'], color='blue')
         
         # Set labels and title
         ax.set_xlabel('Date')
@@ -85,7 +102,7 @@ def plot_stock_data(df, ticker_symbol, chart_type='line'):
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8), gridspec_kw={'height_ratios': [3, 1]})
         
         # Plot price on top subplot
-        ax1.plot(df.index, df['Close'], color='blue')
+        ax1.plot(df_copy.index, df_copy['Close'], color='blue')
         ax1.set_ylabel('Price ($)')
         ax1.set_title(f'Price and Volume for {ticker_symbol}')
         ax1.grid(True, linestyle='--', alpha=0.6)
@@ -93,11 +110,16 @@ def plot_stock_data(df, ticker_symbol, chart_type='line'):
         # Plot volume on bottom subplot
         if has_volume:
             # Create colors for volume bars (green if price went up, red if down)
-            colors = ['green' if df['Close'].iloc[i] > df['Close'].iloc[i-1] else 'red' 
-                     for i in range(1, len(df))]
-            colors.insert(0, 'gray')  # For the first bar
+            # Handle potential errors with price comparison
+            try:
+                colors = ['green' if df_copy['Close'].iloc[i] > df_copy['Close'].iloc[i-1] else 'red' 
+                         for i in range(1, len(df_copy))]
+                colors.insert(0, 'gray')  # For the first bar
+                ax2.bar(df_copy.index, df_copy['Volume'], color=colors, alpha=0.8)
+            except:
+                # Fallback if there's an issue with colors
+                ax2.bar(df_copy.index, df_copy['Volume'], color='blue', alpha=0.8)
             
-            ax2.bar(df.index, df['Volume'], color=colors, alpha=0.8)
             ax2.set_ylabel('Volume')
         else:
             ax2.text(0.5, 0.5, 'Volume data not available', 
@@ -117,7 +139,7 @@ def plot_stock_data(df, ticker_symbol, chart_type='line'):
         if not has_ohlc:
             # Fallback to line chart if OHLC data is not available
             fig, ax = plt.subplots(figsize=(10, 6))
-            ax.plot(df.index, df['Close'], label='Close Price', color='blue')
+            ax.plot(df_copy.index, df_copy['Close'], label='Close Price', color='blue')
             ax.set_title(f'Line Chart for {ticker_symbol} (OHLC data not available for {chart_type})')
             ax.grid(True, linestyle='--', alpha=0.6)
             ax.legend()
@@ -125,46 +147,59 @@ def plot_stock_data(df, ticker_symbol, chart_type='line'):
             plt.tight_layout()
             return fig
         
-        # Set up kwargs for mplfinance
-        kwargs = {
-            'type': 'candle',  # Default, will be overridden for specific chart types
-            'style': mpf_style,
-            'title': f'{chart_type.capitalize()} Chart for {ticker_symbol}',
-            'figsize': (10, 6),
-            'returnfig': True,
-        }
-        
-        # Add volume if available
-        if has_volume:
-            kwargs['volume'] = True
-            kwargs['volume_panel'] = 1
-            kwargs['panel_ratios'] = (4, 1)
-        
-        # Set specific chart types
-        if chart_type == 'candlestick':
-            kwargs['type'] = 'candle'
-        elif chart_type == 'bar':
-            kwargs['type'] = 'ohlc'
-        elif chart_type == 'heikinashi':
-            kwargs['type'] = 'candle'
-            kwargs['heikinashi'] = True
-        elif chart_type == 'renko':
-            kwargs['type'] = 'renko'
-            # Calculate appropriate brick size (about 2% of price range)
-            price_range = df['High'].max() - df['Low'].min()
-            kwargs['renko_params'] = {'brick_size': round(price_range * 0.02, 2)}
-        elif chart_type == 'pnf':  # Point and Figure
-            kwargs['type'] = 'pnf'
-            # Calculate box size (about 1% of average price)
-            avg_price = df['Close'].mean()
-            kwargs['pnf_params'] = {'box_size': round(avg_price * 0.01, 2), 'reversal': 3}
-        elif chart_type == 'kagi':
-            kwargs['type'] = 'kagi'
-            avg_price = df['Close'].mean()
-            kwargs['kagi_params'] = {'reversal': round(avg_price * 0.03, 2)}  # 3% reversal
-        
-        # Create the figure
-        fig, axes = mpf.plot(df, **kwargs)
+        try:
+            # Set up kwargs for mplfinance
+            kwargs = {
+                'type': 'candle',  # Default, will be overridden for specific chart types
+                'style': mpf_style,
+                'title': f'{chart_type.capitalize()} Chart for {ticker_symbol}',
+                'figsize': (10, 6),
+                'returnfig': True,
+            }
+            
+            # Add volume if available
+            if has_volume:
+                kwargs['volume'] = True
+                kwargs['volume_panel'] = 1
+                kwargs['panel_ratios'] = (4, 1)
+            
+            # Set specific chart types
+            if chart_type == 'candlestick':
+                kwargs['type'] = 'candle'
+            elif chart_type == 'bar':
+                kwargs['type'] = 'ohlc'
+            elif chart_type == 'heikinashi':
+                kwargs['type'] = 'candle'
+                kwargs['heikinashi'] = True
+            elif chart_type == 'renko':
+                kwargs['type'] = 'renko'
+                # Calculate appropriate brick size (about 2% of price range)
+                price_range = df_copy['High'].max() - df_copy['Low'].min()
+                kwargs['renko_params'] = {'brick_size': round(price_range * 0.02, 2)}
+            elif chart_type == 'pnf':  # Point and Figure
+                kwargs['type'] = 'pnf'
+                # Calculate box size (about 1% of average price)
+                avg_price = df_copy['Close'].mean()
+                kwargs['pnf_params'] = {'box_size': round(avg_price * 0.01, 2), 'reversal': 3}
+            elif chart_type == 'kagi':
+                kwargs['type'] = 'kagi'
+                avg_price = df_copy['Close'].mean()
+                kwargs['kagi_params'] = {'reversal': round(avg_price * 0.03, 2)}  # 3% reversal
+            
+            # Create the figure
+            fig, axes = mpf.plot(df_copy, **kwargs)
+            
+        except Exception as e:
+            # If there's an error with mplfinance, fall back to a simple line chart
+            st.error(f"Error plotting {chart_type} chart: {str(e)}")
+            fig, ax = plt.subplots(figsize=(10, 6))
+            ax.plot(df_copy.index, df_copy['Close'], label='Close Price', color='blue')
+            ax.set_title(f'Line Chart for {ticker_symbol} (fallback due to error)')
+            ax.grid(True, linestyle='--', alpha=0.6)
+            ax.legend()
+            fig.autofmt_xdate()
+            plt.tight_layout()
+            return fig
         
         return fig[0]  # Return the Figure object, not the tuple
 
