@@ -43,7 +43,8 @@ class EnhancedPredictionModel:
         
         # Add technical indicators if available
         for col in df.columns:
-            if col.startswith('RSI') or col.startswith('MACD') or col.startswith('BB_'):
+            # Check if column is a string type before using string methods
+            if isinstance(col, str) and (col.startswith('RSI') or col.startswith('MACD') or col.startswith('BB_')):
                 features.append(col)
         
         # Ensure all features exist in the DataFrame
