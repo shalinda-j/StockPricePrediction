@@ -262,9 +262,9 @@ def get_gemini_api_key():
     except Exception:
         return None
 
-def display_enhanced_prediction_dashboard(ticker_symbol, df_with_indicators):
+def display_prediction_model(ticker_symbol, df_with_indicators):
     """
-    Display enhanced prediction dashboard.
+    Display the enhanced prediction model.
     
     Args:
         ticker_symbol (str): Stock symbol
@@ -280,9 +280,8 @@ def display_enhanced_prediction_dashboard(ticker_symbol, df_with_indicators):
         n_estimators = st.slider("Number of Trees:", 50, 500, 200)
         test_size = st.slider("Test Size (%):", 10, 40, 20) / 100
     
-    # Button to train the model
-    if st.button("Train Enhanced Prediction Model"):
-        with st.spinner("Preparing data for enhanced prediction model..."):
+    # Automatically start model training
+    with st.spinner("Preparing data for enhanced prediction model..."):
             try:
                 # Prepare data
                 model = EnhancedPredictionModel(sequence_length=sequence_length)
@@ -563,9 +562,8 @@ def display_market_analysis(ticker_symbol, df_with_indicators, news_data=None):
         4. Set the secret name to `GEMINI_API_KEY` and the value to your API key
         """)
     
-    # Display a basic market analysis without Gemini API
-    if st.button("Generate Market Analysis"):
-        with st.spinner("Analyzing market data..."):
+    # Automatically display a market analysis
+    with st.spinner("Analyzing market data..."):
             # Use the simplified analyzer
             analyzer = GeminiMarketAnalyzer()
             analysis = analyzer.analyze_market_trends(ticker_symbol, df_with_indicators, news_data)
@@ -669,7 +667,7 @@ def display_advanced_prediction_dashboard(ticker_symbol, df_with_indicators):
     pred_tab, market_tab = st.tabs(["Enhanced Prediction", "Market Analysis"])
     
     with pred_tab:
-        display_enhanced_prediction_dashboard(ticker_symbol, df_with_indicators)
+        display_prediction_model(ticker_symbol, df_with_indicators)
     
     with market_tab:
         # Get news data for market analysis
