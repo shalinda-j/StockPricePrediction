@@ -14,6 +14,7 @@ from utils import calculate_metrics, get_default_end_date, get_default_start_dat
 from technical_indicators import add_technical_indicators, display_technical_dashboard
 from news_sentiment import display_news_sentiment, get_sentiment_score
 from web_scraper import display_scraped_content
+from enhanced_predictions import display_advanced_prediction_dashboard
 
 # Set page configuration
 st.set_page_config(
@@ -41,7 +42,7 @@ st.sidebar.header("Settings")
 # Tab selection
 tab_selection = st.sidebar.radio(
     "Select Analysis Mode:",
-    ["Price Prediction", "Technical Analysis", "News Sentiment", "Web Scraper", "Combined Analysis"]
+    ["Price Prediction", "Technical Analysis", "News Sentiment", "Web Scraper", "Advanced AI Prediction", "Combined Analysis"]
 )
 
 # Choose between stock or crypto
@@ -231,6 +232,10 @@ if analysis_button:
                     # Display news sentiment
                     display_news_sentiment(ticker_symbol, news_days)
                 
+                elif tab_selection == "Advanced AI Prediction":
+                    # Advanced AI Prediction Tab
+                    display_advanced_prediction_dashboard(ticker_symbol, df_with_indicators)
+                
 # This section is now handled earlier in the code
                 
                 elif tab_selection == "Combined Analysis":
@@ -413,6 +418,12 @@ This financial market prediction system combines multiple approaches for a compr
 #### Price Prediction Models
 - **Linear Regression**: A simple model that predicts based on linear relationships in the data
 - **Random Forest**: An ensemble learning method that builds multiple decision trees and merges their predictions
+- **Enhanced Prediction Model**: Advanced model with multi-factor analysis for higher accuracy predictions
+
+#### Advanced Market Analysis
+- **Support & Resistance Detection**: Automatically identifies key price levels
+- **Market Sentiment Analysis**: Comprehensive analysis of market sentiment based on multiple factors
+- **Risk Assessment**: Identifies potential risks and market drivers
 
 #### Technical Indicators
 - **RSI (Relative Strength Index)**: Measures the speed and change of price movements
@@ -436,4 +447,8 @@ This financial market prediction system combines multiple approaches for a compr
 - Extracts clean, readable text from financial news sites and research articles
 - Helps analyze market information from various sources
 - Converts complex HTML to plain text for easier reading
+
+#### Gemini AI Integration
+- Future integration with Google's Gemini AI for enhanced market insights
+- Set up a GEMINI_API_KEY in Replit Secrets to activate this feature
 """)

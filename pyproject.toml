@@ -4,6 +4,8 @@ version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.11"
 dependencies = [
+    "google-generativeai>=0.8.4",
+    "keras>=2.14.0",
     "matplotlib>=3.10.1",
     "mplfinance>=0.12.10b0",
     "newsapi>=0.1.1",
