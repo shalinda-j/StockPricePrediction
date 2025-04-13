@@ -343,9 +343,9 @@ def plot_indicators(df_with_indicators, ticker_symbol):
                     axes[0].axhline(y=70, color='red', linestyle='--', alpha=0.5)
                     axes[0].axhline(y=30, color='green', linestyle='--', alpha=0.5)
                     
-                    # Create masks for oversold and overbought conditions
-                    oversold_mask = valid_rsi >= 70
-                    overbought_mask = valid_rsi <= 30
+                    # Create masks for oversold and overbought conditions - use pandas methods for comparison
+                    oversold_mask = valid_rsi.ge(70)
+                    overbought_mask = valid_rsi.le(30)
                     
                     # Only fill_between when we have valid data points that meet the condition
                     if oversold_mask.any():
@@ -412,9 +412,9 @@ def plot_indicators(df_with_indicators, ticker_symbol):
                     axes[2].axhline(y=80, color='red', linestyle='--', alpha=0.5)
                     axes[2].axhline(y=20, color='green', linestyle='--', alpha=0.5)
                     
-                    # Create masks for oversold and overbought conditions
-                    overbought_mask = valid_stoch_k >= 80
-                    oversold_mask = valid_stoch_k <= 20
+                    # Create masks for oversold and overbought conditions - use pandas methods for comparison
+                    overbought_mask = valid_stoch_k.ge(80)
+                    oversold_mask = valid_stoch_k.le(20)
                     
                     # Only fill_between when we have valid data points that meet the condition
                     if overbought_mask.any():
