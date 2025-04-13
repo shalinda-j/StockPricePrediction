@@ -157,15 +157,9 @@ if analysis_button:
                     st.subheader(f"Historical Data for {ticker_symbol}")
                     st.dataframe(df.head())
                     
-                    # Plotting historical data with advanced chart options for cryptocurrencies
-                    if data_type == "Cryptocurrency":
-                        # Use the new chart options for cryptocurrencies
-                        st.subheader(f"Advanced Chart Options for {ticker_symbol}")
-                        display_chart_options(df, ticker_symbol)
-                    else:
-                        # Use the standard line chart for stocks
-                        fig = plot_stock_data(df, ticker_symbol)
-                        st.pyplot(fig)
+                    # Plotting historical data with advanced chart options for all data types
+                    st.subheader(f"Chart Options for {ticker_symbol}")
+                    display_chart_options(df, ticker_symbol)
                     
                     # Make predictions based on selected model
                     with st.spinner(f"Training {model_type} model..."):

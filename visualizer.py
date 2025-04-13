@@ -172,19 +172,63 @@ def plot_stock_data(df, ticker_symbol, chart_type='line'):
                 kwargs['type'] = 'candle'
                 kwargs['heikinashi'] = True
             elif chart_type == 'renko':
-                kwargs['type'] = 'renko'
-                # Calculate appropriate brick size (about 2% of price range)
-                price_range = df_copy['High'].max() - df_copy['Low'].min()
-                kwargs['renko_params'] = {'brick_size': round(price_range * 0.02, 2)}
+                try:
+                    # Calculate appropriate brick size (about 2% of price range)
+                    price_range = df_copy['High'].max() - df_copy['Low'].min()
+                    brick_size = round(price_range * 0.02, 2)
+                    # Ensure brick size is not too small
+                    min_brick_size = price_range * 0.005
+                    brick_size = max(brick_size, min_brick_size)
+                    
+                    kwargs['type'] = 'renko'
+                    kwargs['renko_params'] = {'brick_size': brick_size}
+                except Exception as e:
+                    # Fallback to candlestick if renko fails
+                    st.warning(f"Could not create renko chart: {str(e)}. Falling back to candlestick.")
+                    kwargs['type'] = 'candle'
             elif chart_type == 'pnf':  # Point and Figure
-                kwargs['type'] = 'pnf'
-                # Calculate box size (about 1% of average price)
-                avg_price = df_copy['Close'].mean()
-                kwargs['pnf_params'] = {'box_size': round(avg_price * 0.01, 2), 'reversal': 3}
+                try:
+                    # Calculate box size (about 1% of average price)
+                    avg_price = df_copy['Close'].mean()
+                    box_size = round(avg_price * 0.01, 2)
+                    # Ensure box size is reasonable
+                    min_box_size = avg_price * 0.005
+                    box_size = max(box_size, min_box_size)
+                    
+                    kwargs['type'] = 'pnf'
+                    kwargs['pnf_params'] = {'box_size': box_size, 'reversal': 3}
+                except Exception as e:
+                    # Fallback to candlestick if PnF fails
+                    st.warning(f"Could not create Point and Figure chart: {str(e)}. Falling back to candlestick.")
+                    kwargs['type'] = 'candle'
             elif chart_type == 'kagi':
-                kwargs['type'] = 'kagi'
-                avg_price = df_copy['Close'].mean()
-                kwargs['kagi_params'] = {'reversal': round(avg_price * 0.03, 2)}  # 3% reversal
+                try:
+                    # Calculate reversal size (about 3% of average price)
+                    avg_price = df_copy['Close'].mean()
+                    reversal = round(avg_price * 0.03, 2)
+                    # Ensure reversal is reasonable
+                    min_reversal = avg_price * 0.01
+                    reversal = max(reversal, min_reversal)
+                    
+                    kwargs['type'] = 'kagi'
+                    kwargs['kagi_params'] = {'reversal': reversal}
+                except Exception as e:
+                    # Fallback to candlestick if Kagi fails
+                    st.warning(f"Could not create Kagi chart: {str(e)}. Falling back to candlestick.")
+                    kwargs['type'] = 'candle'
+            
+            # Check if the dataframe has enough data points
+            if len(df_copy) < 10:
+                st.warning(f"Not enough data points to create {chart_type} chart. Falling back to line chart.")
+                # Create a simple line chart as fallback
+                fig, ax = plt.subplots(figsize=(10, 6))
+                ax.plot(df_copy.index, df_copy['Close'], label='Close Price', color='blue')
+                ax.set_title(f'Line Chart for {ticker_symbol} (insufficient data for {chart_type})')
+                ax.grid(True, linestyle='--', alpha=0.6)
+                ax.legend()
+                fig.autofmt_xdate()
+                plt.tight_layout()
+                return fig
             
             # Create the figure
             fig, axes = mpf.plot(df_copy, **kwargs)
