@@ -99,9 +99,10 @@ if tab_selection in ["Price Prediction", "Combined Analysis"]:
         window_size = 5  # Default for Random Forest
         n_estimators = 100  # Default for Random Forest
 
+# Add news sentiment days slider
 if tab_selection in ["News Sentiment", "Combined Analysis"]:
     st.sidebar.subheader("News Settings")
-    news_days = st.sidebar.slider("News Lookback Days:", 1, 30, 7)
+    news_days = st.sidebar.slider("Days for News Analysis:", 1, 30, 7)
     
 if tab_selection == "Web Scraper":
     st.sidebar.subheader("Web Scraper Settings")

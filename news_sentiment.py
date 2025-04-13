@@ -235,7 +235,7 @@ def display_news_sentiment(ticker, days_back=7):
             st.info(f"No news articles found for {ticker} in the last {days_back} days.")
             return
         
-        avg_sentiment, article_count, _ = get_sentiment_score(ticker, days_back)
+        avg_sentiment, article_count, sentiment_by_day = get_sentiment_score(ticker, days_back)
         
         # Display sentiment summary
         st.subheader(f"News Sentiment Analysis for {ticker}")
@@ -257,27 +257,53 @@ def display_news_sentiment(ticker, days_back=7):
         with col2:
             st.metric("Articles Analyzed", article_count)
         
+        # If we have sentiment data for multiple days, show a trend
+        if len(sentiment_by_day) > 1:
+            st.subheader("Sentiment Trend")
+            # Convert the sentiment_by_day dictionary to a DataFrame for plotting
+            try:
+                sentiment_df = pd.DataFrame([
+                    {"Date": date, "Sentiment": score}
+                    for date, score in sentiment_by_day.items()
+                ])
+                
+                # Ensure the Date column is properly formatted
+                sentiment_df["Date"] = pd.to_datetime(sentiment_df["Date"])
+                sentiment_df = sentiment_df.sort_values("Date")
+                
+                # Plot the sentiment trend
+                st.line_chart(sentiment_df.set_index("Date"))
+            except Exception as trend_error:
+                st.error(f"Error displaying sentiment trend: {trend_error}")
+                
         # Display individual articles
         st.subheader("Recent News Articles")
         
         for i, article in enumerate(articles[:5]):  # Show only up to 5 articles
-            with st.expander(f"{article['title']} ({article['published_at']})"):
-                st.write(article['description'])
-                
-                # Format sentiment
-                sentiment = article['sentiment']
-                sentiment_color = "gray"
-                if sentiment > 0.2:
-                    sentiment_color = "green"
-                elif sentiment > 0.05:
-                    sentiment_color = "lightgreen"
-                elif sentiment < -0.2:
-                    sentiment_color = "red"
-                elif sentiment < -0.05:
-                    sentiment_color = "lightcoral"
-                
-                st.markdown(f"**Sentiment Score:** <span style='color:{sentiment_color}'>{sentiment:.2f}</span>", unsafe_allow_html=True)
-                st.markdown(f"[Read full article]({article['url']})")
+            try:
+                with st.expander(f"{article['title']} ({article['published_at']})"):
+                    st.write(article['description'])
+                    
+                    # Format sentiment - make sure sentiment is a float, not a Series
+                    sentiment = float(article['sentiment']) if isinstance(article['sentiment'], (pd.Series, np.ndarray)) else article['sentiment']
+                    sentiment_color = "gray"
+                    if sentiment > 0.2:
+                        sentiment_color = "green"
+                    elif sentiment > 0.05:
+                        sentiment_color = "lightgreen"
+                    elif sentiment < -0.2:
+                        sentiment_color = "red"
+                    elif sentiment < -0.05:
+                        sentiment_color = "lightcoral"
+                    
+                    st.markdown(f"**Sentiment Score:** <span style='color:{sentiment_color}'>{sentiment:.2f}</span>", unsafe_allow_html=True)
+                    st.markdown(f"[Read full article]({article['url']})")
+            except Exception as article_error:
+                st.error(f"Error displaying article {i}: {article_error}")
+                st.write(f"Article data: {type(article)}")
     except Exception as e:
         st.error(f"Error in news sentiment display: {str(e)}")
+        # Try to provide more context about the error
+        import traceback
+        st.text(traceback.format_exc())
         st.info("To enable news sentiment analysis, please add a NEWSAPI_KEY in the Replit Secrets.")
