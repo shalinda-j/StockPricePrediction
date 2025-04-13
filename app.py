@@ -9,7 +9,7 @@ import os
 from data_fetcher import fetch_stock_data, fetch_crypto_data
 from data_processor import preprocess_data, prepare_data_for_lr, prepare_data_for_random_forest
 from models import train_linear_regression, train_random_forest, predict_prices
-from visualizer import plot_stock_data, plot_prediction_vs_actual
+from visualizer import plot_stock_data, plot_prediction_vs_actual, display_chart_options
 from utils import calculate_metrics, get_default_end_date, get_default_start_date
 from technical_indicators import add_technical_indicators, display_technical_dashboard
 from news_sentiment import display_news_sentiment, get_sentiment_score
@@ -155,9 +155,15 @@ if analysis_button:
                     st.subheader(f"Historical Data for {ticker_symbol}")
                     st.dataframe(df.head())
                     
-                    # Plotting historical data
-                    fig = plot_stock_data(df, ticker_symbol)
-                    st.pyplot(fig)
+                    # Plotting historical data with advanced chart options for cryptocurrencies
+                    if data_type == "Cryptocurrency":
+                        # Use the new chart options for cryptocurrencies
+                        st.subheader(f"Advanced Chart Options for {ticker_symbol}")
+                        display_chart_options(df, ticker_symbol)
+                    else:
+                        # Use the standard line chart for stocks
+                        fig = plot_stock_data(df, ticker_symbol)
+                        st.pyplot(fig)
                     
                     # Make predictions based on selected model
                     with st.spinner(f"Training {model_type} model..."):
