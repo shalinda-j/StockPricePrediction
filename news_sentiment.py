@@ -17,7 +17,11 @@ def get_news_api_key():
     """
     Get the News API key from secrets
     """
-    return st.secrets.get("NEWSAPI_KEY", None)
+    try:
+        return st.secrets.get("NEWSAPI_KEY", None)
+    except Exception:
+        # Return None if secrets aren't available at all
+        return None
 
 def get_news_for_ticker(ticker, days_back=7):
     """
@@ -185,8 +189,8 @@ def get_sentiment_trend(ticker, days=30):
             })
             return sentiment_df
     
-    # If news API isn't available, provide feedback
-    st.warning("News API key not available. Please add a NEWSAPI_KEY in secrets to fetch real news sentiment.")
+    # If news API isn't available, return None but don't show warning
+    # The warning will be handled in display_news_sentiment
     return None
 
 def display_news_sentiment(ticker, days_back=7):
@@ -197,52 +201,83 @@ def display_news_sentiment(ticker, days_back=7):
         ticker (str): Stock symbol to analyze
         days_back (int): Number of days to look back for news
     """
-    articles = get_news_for_ticker(ticker, days_back)
-    
-    if not articles:
-        st.info(f"No news articles found for {ticker} in the last {days_back} days. To enable news sentiment, please add a NEWSAPI_KEY in the app secrets.")
-        return
-    
-    avg_sentiment, article_count, _ = get_sentiment_score(ticker, days_back)
-    
-    # Display sentiment summary
-    st.subheader(f"News Sentiment Analysis for {ticker}")
-    
-    # Determine sentiment description
-    sentiment_desc = "Neutral"
-    if avg_sentiment > 0.2:
-        sentiment_desc = "Strongly Positive"
-    elif avg_sentiment > 0.05:
-        sentiment_desc = "Positive"
-    elif avg_sentiment < -0.2:
-        sentiment_desc = "Strongly Negative"
-    elif avg_sentiment < -0.05:
-        sentiment_desc = "Negative"
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("Average Sentiment", f"{avg_sentiment:.2f}", sentiment_desc)
-    with col2:
-        st.metric("Articles Analyzed", article_count)
-    
-    # Display individual articles
-    st.subheader("Recent News Articles")
-    
-    for i, article in enumerate(articles[:5]):  # Show only up to 5 articles
-        with st.expander(f"{article['title']} ({article['published_at']})"):
-            st.write(article['description'])
+    try:
+        # Check if we can access secrets first
+        api_key = get_news_api_key()
+        if api_key is None:
+            # Create fallback info when no API key is available
+            st.warning("News API key not available. Please set up a NewsAPI key for news sentiment analysis.")
+            st.markdown("""
+            ### How to set up your News API key:
             
-            # Format sentiment
-            sentiment = article['sentiment']
-            sentiment_color = "gray"
-            if sentiment > 0.2:
-                sentiment_color = "green"
-            elif sentiment > 0.05:
-                sentiment_color = "lightgreen"
-            elif sentiment < -0.2:
-                sentiment_color = "red"
-            elif sentiment < -0.05:
-                sentiment_color = "lightcoral"
+            1. Sign up for a free account at [NewsAPI.org](https://newsapi.org/register)
+            2. Get your API key from your account dashboard
+            3. Add your API key to the Replit Secrets by clicking on the lock icon in the sidebar
+            4. Set the secret name to `NEWSAPI_KEY` and the value to your API key
+            """)
             
-            st.markdown(f"**Sentiment Score:** <span style='color:{sentiment_color}'>{sentiment:.2f}</span>", unsafe_allow_html=True)
-            st.markdown(f"[Read full article]({article['url']})")
+            # Show example sentiment format for the selected ticker
+            st.subheader(f"Example News Sentiment Format for {ticker}")
+            st.info("This section will display real sentiment analysis once your API key is configured.")
+            
+            # Create sample metrics to show the user what they would see
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Average Sentiment", "0.00", "Neutral")
+            with col2:
+                st.metric("Articles Analyzed", "0")
+                
+            return
+        
+        articles = get_news_for_ticker(ticker, days_back)
+        
+        if not articles:
+            st.info(f"No news articles found for {ticker} in the last {days_back} days.")
+            return
+        
+        avg_sentiment, article_count, _ = get_sentiment_score(ticker, days_back)
+        
+        # Display sentiment summary
+        st.subheader(f"News Sentiment Analysis for {ticker}")
+        
+        # Determine sentiment description
+        sentiment_desc = "Neutral"
+        if avg_sentiment > 0.2:
+            sentiment_desc = "Strongly Positive"
+        elif avg_sentiment > 0.05:
+            sentiment_desc = "Positive"
+        elif avg_sentiment < -0.2:
+            sentiment_desc = "Strongly Negative"
+        elif avg_sentiment < -0.05:
+            sentiment_desc = "Negative"
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Average Sentiment", f"{avg_sentiment:.2f}", sentiment_desc)
+        with col2:
+            st.metric("Articles Analyzed", article_count)
+        
+        # Display individual articles
+        st.subheader("Recent News Articles")
+        
+        for i, article in enumerate(articles[:5]):  # Show only up to 5 articles
+            with st.expander(f"{article['title']} ({article['published_at']})"):
+                st.write(article['description'])
+                
+                # Format sentiment
+                sentiment = article['sentiment']
+                sentiment_color = "gray"
+                if sentiment > 0.2:
+                    sentiment_color = "green"
+                elif sentiment > 0.05:
+                    sentiment_color = "lightgreen"
+                elif sentiment < -0.2:
+                    sentiment_color = "red"
+                elif sentiment < -0.05:
+                    sentiment_color = "lightcoral"
+                
+                st.markdown(f"**Sentiment Score:** <span style='color:{sentiment_color}'>{sentiment:.2f}</span>", unsafe_allow_html=True)
+                st.markdown(f"[Read full article]({article['url']})")
+    except Exception as e:
+        st.error(f"Error in news sentiment display: {str(e)}")
+        st.info("To enable news sentiment analysis, please add a NEWSAPI_KEY in the Replit Secrets.")
